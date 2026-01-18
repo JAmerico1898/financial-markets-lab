@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>FIDC Varejo Real - Visualização Interativa</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: white; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 24px; color: #ff9f43; font-weight: bold; pointer-events: none;
+            text-shadow: 0 0 10px rgba(255, 159, 67, 0.5);
+            transition: opacity 0.5s;
+            text-align: center;
+            z-index: 9999;
+        }
+
+        #error-log {
+            position: absolute; bottom: 10px; left: 10px; right: 10px;
+            color: #ff5555; background: rgba(0,0,0,0.9); padding: 15px;
+            font-family: monospace; font-size: 14px; display: none;
+            z-index: 10000; border-radius: 4px; pointer-events: none;
+            white-space: pre-wrap; border: 1px solid #ff5555;
+        }
+
+        #ui-layer {
+            position: absolute; top: 20px; left: 20px; width: 380px;
+            background: rgba(15, 15, 15, 0.95); padding: 25px;
+            border-radius: 8px; border-left: 5px solid #ff9f43;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            pointer-events: none;
+            opacity: 0; transition: opacity 1s;
+        }
+
+        #controls {
+            position: absolute; bottom: 40px; width: 100%;
+            display: flex; justify-content: center; gap: 20px;
+            pointer-events: auto;
+            opacity: 0; transition: opacity 1s;
+        }
+
+        button {
+            background: #ff9f43; border: none; padding: 14px 28px;
+            color: #121212; font-weight: 800; font-size: 15px;
+            cursor: pointer; border-radius: 4px; text-transform: uppercase;
+            letter-spacing: 1px; transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 159, 67, 0.3);
+        }
+        button:hover:not(:disabled) { background: #ffb063; transform: scale(1.05); }
+        button:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
+
+        h2 { margin: 0 0 10px 0; font-size: 20px; color: #ff9f43; }
+        p { font-size: 14px; line-height: 1.6; color: #e0e0e0; margin-bottom: 15px; }
+        .citation { font-size: 11px; color: #888; font-style: italic; border-top: 1px solid #333; padding-top: 8px; }
+
+        .label {
+            position: absolute; color: white; font-size: 12px; font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.9); pointer-events: none;
+            background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px;
+            white-space: nowrap; transform: translate(-50%, -50%);
+        }
+
+        #legend {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(0,0,0,0.85); padding: 15px; border-radius: 8px;
+            font-size: 12px; pointer-events: none;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 6px; }
+        .color-box { width: 15px; height: 15px; margin-right: 10px; border-radius: 3px; }
+    </style>
+    
+    <script>
+        // Tratamento de erros global para exibir na tela
+        window.onerror = function(msg, url, line) {
+            const log = document.getElementById('error-log');
+            const loading = document.getElementById('loading');
+            if(log && loading) {
+                loading.innerHTML = "Erro de Script";
+                loading.style.color = "#ff5555";
+                log.style.display = 'block';
+                log.innerHTML += `ERRO: ${msg}\nLinha: ${line}\n`;
+            }
+            return false;
+        };
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+</head>
+<body>
+
+    <div id="loading">Carregando Cenário 3D...<br><span style="font-size:14px; color:#888;">(Inicializando motor gráfico)</span></div>
+    <div id="error-log"></div>
+
+    <div id="ui-layer">
+        <h2 id="step-title">Inicializando...</h2>
+        <div id="step-desc"></div>
+        <div id="step-cite" class="citation"></div>
+    </div>
+
+    <div id="legend">
+        <div class="legend-item"><div class="color-box" style="background:#2980b9"></div>Varejista (Cedente)</div>
+        <div class="legend-item"><div class="color-box" style="background:#27ae60"></div>Clientes (Sacados)</div>
+        <div class="legend-item"><div class="color-box" style="background:#f39c12"></div>FIDC (Fundo)</div>
+        <div class="legend-item"><div class="color-box" style="background:#8e44ad"></div>Gestor</div>
+        <div class="legend-item"><div class="color-box" style="background:#c0392b"></div>Custodiante</div>
+    </div>
+
+    <div id="controls">
+        <button id="btn-prev" onclick="changeStep(-1)" disabled>Anterior</button>
+        <button id="btn-next" onclick="changeStep(1)">Próximo Passo</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+<script>
+    // --- Variáveis Globais ---
+    let scene, camera, renderer;
+    let entities = { sacados: [] }; 
+    let labels = []; 
+    let flowObjects = []; 
+    let currentStep = 0;
+    let initAttempts = 0;
+    let isInitialized = false;
+
+    // --- Definição dos Passos ---
+    // ATENÇÃO: Cada propriedade termina com vírgula.
+    const steps = [
+        {
+            title: "Cenário: O Varejo e as Vendas a Prazo",
+            desc: `O Varejista (Azul) vende produtos para Clientes (Verdes) a prazo. O dinheiro demora a cair, criando um problema de caixa.`,
+            cite: "FIDC permite antecipação eficiente de recebíveis [cite: 10]",
+            action: () => {
+                resetFlow();
+                toggleVisibility(['fidc', 'gestor', 'admin'], false);
+                if(window.salesInterval) clearInterval(window.salesInterval);
+                
+                // Dispara fluxo inicial
+                createMultiFlow(entities.cedente.position, entities.sacados.map(s => s.position), 0x3498db, "Mercadoria", 2000, true);
+                
+                window.salesInterval = setInterval(() => {
+                    if(currentStep === 0) createMultiFlow(entities.cedente.position, entities.sacados.map(s => s.position), 0x3498db, "", 2000, true);
+                }, 3000);
+            }
+        },
+        {
+            title: "Passo 1: Estruturação do FIDC",
+            desc: `Cria-se o FIDC (Amarelo). A política define a compra desses recebíveis. O Fundo precisa de escala (PL > R$ 10mi).`,
+            cite: "Viabilidade econômica exige escala mínima [cite: 59]",
+            action: () => {
+                clearInterval(window.salesInterval);
+                toggleVisibility(['fidc'], true);
+                entities.fidc.material.opacity = 0.3;
+                entities.fidc.material.color.setHex(0xf39c12);
+            }
+        },
+        {
+            title: "Passo 2: Gestão e Custódia",
+            desc: `O Gestor (Roxo) analisa o crédito. O Custodiante (Vermelho) guarda o lastro. Na CVM 175, o Gestor verifica o lastro.`,
+            cite: "Gestor assume responsabilidade pelo lastro [cite: 25]",
+            action: () => {
+                toggleVisibility(['gestor', 'admin'], true);
+            }
+        },
+        {
+            title: "Passo 3: Registro Ágil (CVM 175)",
+            desc: `O fundo é registrado. O 'Rito Automático' aprova em dias, acelerando o acesso ao capital.`,
+            cite: "Rito Automático via convênio ANBIMA [cite: 124]",
+            action: () => {
+                entities.fidc.material.opacity = 1;
+                entities.fidc.material.emissive.setHex(0xaa6600);
+                
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(5, 0.1, 16, 100), new THREE.MeshBasicMaterial({color: 0xffffff, transparent:true}));
+                ring.position.copy(entities.fidc.position); ring.rotation.x = Math.PI/2;
+                scene.add(ring);
+                new TWEEN.Tween(ring.scale).to({x:2, y:2}, 1000).onComplete(()=>scene.remove(ring)).start();
+            }
+        },
+        {
+            title: "Passo 4: Operação - Lote de Cessão",
+            desc: `O Varejista envia um arquivo digital (Lote) com as vendas. O Gestor valida se as vendas existem (Lastro) e registra.`,
+            cite: "Verificação de lastro mitiga fraude [cite: 26]",
+            action: () => {
+                resetFlow();
+                createPackage(entities.cedente.position, entities.gestor.position, 0xffffff, "Lote XML", 1500, 1.2, () => {
+                    createPackage(entities.gestor.position, entities.admin.position, 0x2ecc71, "Validado", 1500, 1.2);
+                });
+            }
+        },
+        {
+            title: "Passo 5: Liquidação (Dinheiro no Caixa)",
+            desc: `Com o lote validado, o Fundo libera o dinheiro À VISTA para o Varejista. Problema resolvido.`,
+            cite: "FIDC elimina spread bancário [cite: 10]",
+            action: () => {
+                setTimeout(() => {
+                    createPackage(entities.fidc.position, entities.cedente.position, 0xf1c40f, "R$ Caixa", 2000, 1.5);
+                }, 500);
+            }
+        },
+        {
+            title: "Passo 6: Pagamento dos Clientes",
+            desc: `Quando os boletos vencem, os clientes pagam. O dinheiro vai direto para o FIDC, recompondo o fundo.`,
+            cite: "Conta vinculada recebe fluxo dos devedores [cite: 257]",
+            action: () => {
+                createMultiFlow(entities.sacados.map(s => s.position), entities.fidc.position, 0x27ae60, "Pagamento", 1500, true);
+            }
+        }
+    ];
+
+    // --- Inicialização ---
+
+    document.addEventListener("DOMContentLoaded", tryInit);
+    window.addEventListener("load", tryInit);
+
+    function tryInit() {
+        if (isInitialized) return;
+        
+        try {
+            if (typeof THREE === 'undefined' || typeof TWEEN === 'undefined') {
+                if (initAttempts < 5) {
+                    initAttempts++;
+                    setTimeout(tryInit, 500);
+                    return;
+                } else {
+                    throw new Error("Bibliotecas Three.js/Tween não carregaram.");
+                }
+            }
+            isInitialized = true;
+            init();
+        } catch (e) {
+            document.getElementById('loading').innerHTML = "Falha ao Iniciar";
+            const log = document.getElementById('error-log');
+            log.style.display = 'block';
+            log.innerHTML += `ERRO CRÍTICO: ${e.message}\n`;
+        }
+    }
+
+    function init() {
+        const container = document.getElementById('canvas-container');
+        
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+        scene.fog = new THREE.Fog(0x1a1a1a, 20, 90);
+
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 30, 45);
+        camera.lookAt(0, 0, 0);
+
+        try {
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+        } catch(e) {
+            throw new Error("WebGL não suportado ou desabilitado.");
+        }
+
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+        scene.add(hemiLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        const grid = new THREE.GridHelper(100, 100, 0x333333, 0x111111);
+        scene.add(grid);
+
+        createWorld();
+
+        const loadingEl = document.getElementById('loading');
+        loadingEl.style.opacity = 0;
+        setTimeout(() => { if(loadingEl) loadingEl.style.display = 'none'; }, 500);
+
+        document.getElementById('ui-layer').style.opacity = 1;
+        document.getElementById('controls').style.opacity = 1;
+
+        animate();
+        changeStep(0);
+    }
+
+    function createWorld() {
+        const geoStore = new THREE.BoxGeometry(6, 4, 6);
+        const matStore = new THREE.MeshPhongMaterial({ color: 0x2980b9 });
+        entities.cedente = createMesh(geoStore, matStore, -15, 2, 0, "Varejista (Cedente)");
+
+        const geoFidc = new THREE.CylinderGeometry(5, 5, 1, 32);
+        const matFidc = new THREE.MeshPhongMaterial({ color: 0xf39c12, transparent: true, opacity: 0.1 });
+        entities.fidc = createMesh(geoFidc, matFidc, 0, 0.5, 0, "FIDC");
+        entities.fidc.visible = false;
+
+        const geoAgent = new THREE.BoxGeometry(2, 2, 2);
+        entities.gestor = createMesh(geoAgent, new THREE.MeshPhongMaterial({ color: 0x8e44ad }), -4, 1, -8, "Gestor");
+        entities.admin = createMesh(geoAgent, new THREE.MeshPhongMaterial({ color: 0xc0392b }), 4, 1, -8, "Admin");
+        entities.gestor.visible = false;
+        entities.admin.visible = false;
+
+        const geoClient = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+        const matClient = new THREE.MeshPhongMaterial({ color: 0x27ae60 });
+        
+        const positions = [
+            {x: 15, z: -5}, {x: 18, z: 0}, {x: 14, z: 6},
+            {x: 20, z: -8}, {x: 22, z: 5}, {x: 12, z: 0}
+        ];
+
+        positions.forEach(pos => {
+            const mesh = createMesh(geoClient, matClient, pos.x, 0.75, pos.z, "");
+            entities.sacados.push(mesh);
+        });
+        
+        createLabel(entities.sacados[1].position, "Clientes (Sacados)");
+    }
+
+    function createMesh(geo, mat, x, y, z, labelText) {
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+        if(labelText) createLabel(mesh.position, labelText, y + 1.5);
+        return mesh;
+    }
+
+    function createLabel(pos, text, offsetY = 2) {
+        const div = document.createElement('div');
+        div.className = 'label';
+        div.textContent = text;
+        document.body.appendChild(div);
+        labels.push({ div, pos: pos.clone(), offsetY }); 
+    }
+
+    function toggleVisibility(names, visible) {
+        names.forEach(name => {
+            if(entities[name]) {
+                entities[name].visible = visible;
+                if(visible) {
+                    entities[name].scale.set(0.1,0.1,0.1);
+                    new TWEEN.Tween(entities[name].scale).to({x:1, y:1, z:1}, 600).easing(TWEEN.Easing.Back.Out).start();
+                }
+            }
+        });
+    }
+
+    window.changeStep = function(delta) {
+        if (delta !== 0) currentStep += delta;
+        if (currentStep < 0) currentStep = 0;
+        if (currentStep >= steps.length) currentStep = 0;
+
+        const step = steps[currentStep];
+        document.getElementById('step-title').innerText = step.title;
+        document.getElementById('step-desc').innerText = step.desc;
+        document.getElementById('step-cite').innerText = step.cite;
+
+        document.getElementById('btn-prev').disabled = (currentStep === 0);
+        document.getElementById('btn-next').innerText = (currentStep === steps.length - 1) ? "Reiniciar" : "Próximo";
+
+        step.action();
+    }
+
+    function resetFlow() {
+        flowObjects.forEach(obj => scene.remove(obj));
+        flowObjects = [];
+    }
+
+    function createPackage(start, end, color, text, duration, scale = 1, onComplete) {
+        const geo = new THREE.DodecahedronGeometry(0.5 * scale);
+        const mat = new THREE.MeshPhongMaterial({ color: color, emissive: color, emissiveIntensity: 0.4 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(start);
+        mesh.position.y += 2;
+        scene.add(mesh);
+        flowObjects.push(mesh);
+
+        new TWEEN.Tween(mesh.position)
+            .to({ x: end.x, z: end.z }, duration)
+            .easing(TWEEN.Easing.Quadratic.InOut)
+            .onComplete(() => {
+                scene.remove(mesh);
+                if(onComplete) onComplete();
+            })
+            .start();
+
+        const midY = 6;
+        new TWEEN.Tween(mesh.position)
+            .to({ y: midY }, duration/2)
+            .yoyo(true).repeat(1)
+            .easing(TWEEN.Easing.Sinusoidal.Out)
+            .start();
+            
+        new TWEEN.Tween(mesh.rotation).to({x: Math.PI*2, y: Math.PI*2}, duration).start();
+    }
+
+    function createMultiFlow(startPos, endPositions, color, text, duration, scatter) {
+        const starts = Array.isArray(startPos) ? startPos : [startPos];
+        const ends = Array.isArray(endPositions) ? endPositions : [endPositions];
+        
+        const targetArray = ends.length > starts.length ? ends : starts;
+        const maxPackets = 8;
+
+        targetArray.slice(0, maxPackets).forEach((_, i) => {
+            const s = starts[i % starts.length];
+            const e = ends[i % ends.length];
+            const delay = scatter ? Math.random() * 1000 : i * 200;
+            setTimeout(() => {
+                createPackage(s, e, color, text, duration);
+            }, delay);
+        });
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        TWEEN.update();
+
+        if(entities.gestor && entities.gestor.visible) {
+            const t = Date.now() * 0.001;
+            entities.gestor.position.y = 1 + Math.sin(t)*0.2;
+            entities.admin.position.y = 1 + Math.sin(t + 2)*0.2;
+        }
+
+        labels.forEach(lbl => {
+            const tempV = new THREE.Vector3(lbl.pos.x, lbl.pos.y + lbl.offsetY, lbl.pos.z);
+            tempV.project(camera);
+            const x = (tempV.x * .5 + .5) * window.innerWidth;
+            const y = (tempV.y * -.5 + .5) * window.innerHeight;
+            
+            if(tempV.z < 1) {
+                lbl.div.style.display = 'block';
+                lbl.div.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+            } else {
+                lbl.div.style.display = 'none';
+            }
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+</script>
+</body>
+</html>
