@@ -8,3 +8,4 @@ plotly
 Pillow
 scipy
 graphviz
+pyield
