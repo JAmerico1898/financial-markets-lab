@@ -21,227 +21,253 @@ import module_05_tokenization
 import module_06_financial_regulation
 import module_07_suggestions
 
-# CABEÇALHO DO FORM
-st.markdown("<h2 style='text-align: center;'>Laboratório de Mercado Financeiro</h2>", unsafe_allow_html=True)
+# =============================================================================
+# DEFINIÇÃO DOS MÓDULOS
+# =============================================================================
 
-st.markdown("<hr style='border:0.5px solid black;'>", unsafe_allow_html=True)
-
-# Define your options (7 módulos)
-options = [
-    "M1 - Estrutura a Termo de Taxas de Juros",
-    "M2 - Modelagem de Risco de Crédito",
-    "M3 - Fundos de Investimento em Direitos Creditórios", 
-    "M4 - Banking as a Service",
-    "M5 - Tokenização de Ativos",
-    "M6 - Regulação Bancária",
-    "Caixa de Sugestões, Dúvidas...!"
+MODULES = [
+    {"key": "M1", "icon": "📈", "title": "Estrutura a Termo de Taxas de Juros",
+     "render": module_01_ettj.render},
+    {"key": "M2", "icon": "🧪", "title": "Modelagem de Risco de Crédito",
+     "render": module_02_credit_risk.render},
+    {"key": "M3", "icon": "⚖️", "title": "Fundos de Investimento em Direitos Creditórios",
+     "render": module_03_fidc.render},
+    {"key": "M4", "icon": "🏛️", "title": "Banking as a Service",
+     "render": module_04_baas.render},
+    {"key": "M5", "icon": "📊", "title": "Tokenização de Ativos",
+     "render": module_05_tokenization.render},
+    {"key": "M6", "icon": "🏦", "title": "Regulação Bancária",
+     "render": module_06_financial_regulation.render},
+    {"key": "SUG", "icon": "💬", "title": "Sugestões e Dúvidas  Fale com o Professor",
+     "render": module_07_suggestions.render},
 ]
 
-# Initialize session state variables if they don't exist
-if 'selected_option' not in st.session_state:
-    st.session_state.selected_option = None
-    st.session_state.should_scroll = False
-
-# Define button click handlers for each option
-def select_option(option):
-    st.session_state.selected_option = option
-
-# Define custom CSS for button styling
-st.markdown("""
-<style>
-    /* Default button style (light gray) */
-    .stButton > button {
-        background-color: #f0f2f6 !important;
-        color: #31333F !important;
-        border-color: #d2d6dd !important;
-        width: 100%;
-    }
-    
-    /* Selected button style (red) */
-    .selected-button {
-        background-color: #FF4B4B !important;
-        color: white !important;
-        border-color: #FF0000 !important;
-        width: 100%;
-        padding: 0.5rem;
-        font-weight: 400;
-        border-radius: 0.25rem;
-        cursor: default;
-        text-align: center;
-        margin-bottom: 0.75rem;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # =============================================================================
-# GRID DE BOTÕES (3 colunas x 3 linhas = 9 posições para 7 módulos)
+# SESSION STATE
 # =============================================================================
 
-# Row 1 (Módulos 1, 2, 3)
-col1, col2, col3 = st.columns([3, 3, 3])
+if "selected_module" not in st.session_state:
+    st.session_state.selected_module = None
 
-with col1:
-    if st.session_state.selected_option == options[0]:
-        st.markdown(
-            f"""
-            <div data-testid="stButton">
-                <button class="selected-button">
-                    {options[0]}
-                </button>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    else:
-        st.button(options[0], key="btn0", use_container_width=True, on_click=select_option, args=(options[0],))
 
-with col2:
-    if st.session_state.selected_option == options[1]:
-        st.markdown(
-            f"""
-            <div data-testid="stButton">
-                <button class="selected-button">
-                    {options[1]}
-                </button>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    else:
-        st.button(options[1], key="btn1", use_container_width=True, on_click=select_option, args=(options[1],))
+def go_to_module(key):
+    st.session_state.selected_module = key
 
-with col3:
-    if st.session_state.selected_option == options[2]:
-        st.markdown(
-            f"""
-            <div data-testid="stButton">
-                <button class="selected-button">
-                    {options[2]}
-                </button>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    else:
-        st.button(options[2], key="btn2", use_container_width=True, on_click=select_option, args=(options[2],))
 
-# Row 2 (Módulos 4, 5, 6)
-col4, col5, col6 = st.columns([3, 3, 3])
-
-with col4:
-    if st.session_state.selected_option == options[3]:
-        st.markdown(
-            f"""
-            <div data-testid="stButton">
-                <button class="selected-button">
-                    {options[3]}
-                </button>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    else:
-        st.button(options[3], key="btn3", use_container_width=True, on_click=select_option, args=(options[3],))
-
-with col5:
-    if st.session_state.selected_option == options[4]:
-        st.markdown(
-            f"""
-            <div data-testid="stButton">
-                <button class="selected-button">
-                    {options[4]}
-                </button>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    else:
-        st.button(options[4], key="btn4", use_container_width=True, on_click=select_option, args=(options[4],))
-
-with col6:
-    if st.session_state.selected_option == options[5]:
-        st.markdown(
-            f"""
-            <div data-testid="stButton">
-                <button class="selected-button">
-                    {options[5]}
-                </button>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    else:
-        st.button(options[5], key="btn5", use_container_width=True, on_click=select_option, args=(options[5],))
-
-# Row 3 (Caixa de Sugestões centralizada)
-col7, col8, col9 = st.columns([3, 3, 3])
-
-with col7:
-    pass  # Vazio para centralizar
-
-with col8:
-    if st.session_state.selected_option == options[6]:
-        st.markdown(
-            f"""
-            <div data-testid="stButton">
-                <button class="selected-button">
-                    {options[6]}
-                </button>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    else:
-        st.button(options[6], key="btn6", use_container_width=True, on_click=select_option, args=(options[6],))
-
-with col9:
-    pass  # Vazio para centralizar
-
-st.markdown("<hr style='border:0.5px solid black;'>", unsafe_allow_html=True)
+def go_to_hub():
+    st.session_state.selected_module = None
 
 
 # =============================================================================
-# RENDERIZAÇÃO DOS MÓDULOS
+# HUB
 # =============================================================================
 
-if st.session_state.selected_option == "M1 - Estrutura a Termo de Taxas de Juros":
-    module_01_ettj.render()
+def render_hub():
+    """Renderiza a página principal com cards de módulos."""
 
-elif st.session_state.selected_option == "M2 - Modelagem de Risco de Crédito":
-    module_02_credit_risk.render()
-    
-elif st.session_state.selected_option == "M3 - Fundos de Investimento em Direitos Creditórios":
-    module_03_fidc.render()
-
-elif st.session_state.selected_option == "M4 - Banking as a Service":
-    module_04_baas.render()
-
-elif st.session_state.selected_option == "M5 - Tokenização de Ativos":
-    module_05_tokenization.render()
-
-elif st.session_state.selected_option == "M6 - Regulação Bancária":
-    module_06_financial_regulation.render()
-
-elif st.session_state.selected_option == "Caixa de Sugestões, Dúvidas...!":
-    module_07_suggestions.render()
-
-else:
-    # Nenhum módulo selecionado - mostrar mensagem de boas-vindas
+    # CSS para cards e layout
     st.markdown("""
-    <div style='text-align: center; padding: 2rem; color: #666;'>
-        <h3>👆 Selecione um módulo acima para começar</h3>
-        <p>Clique em um dos botões para acessar o conteúdo interativo.</p>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap');
+
+        .main {
+            background-color: #f8fafc;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* ========== HEADER ========== */
+        .hub-header {
+            text-align: center;
+            padding: 2rem 0 1rem 0;
+        }
+        .hub-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.3rem;
+        }
+        .hub-header p {
+            font-size: 1rem;
+            color: #888;
+        }
+
+        /* ========== CARD BUTTONS ========== */
+        .stButton > button {
+            background: #ffffff !important;
+            border: 1.5px solid #e2e8f0 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+            transition: all 0.3s ease !important;
+            padding: 18px 12px !important;
+            min-height: 110px !important;
+            width: 100% !important;
+            color: #1e293b !important;
+            font-size: 0.9rem !important;
+            font-weight: 500 !important;
+            line-height: 1.4 !important;
+            white-space: pre-wrap !important;
+            text-align: center !important;
+        }
+
+        .stButton > button:hover {
+            transform: translateY(-3px) !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+            border-color: #c0392b !important;
+            color: #c0392b !important;
+        }
+
+        .stButton > button:active {
+            transform: translateY(0px) !important;
+        }
+
+        .stButton > button:focus:not(:active) {
+            border-color: #c0392b !important;
+            box-shadow: 0 0 0 3px rgba(192,57,43,0.12) !important;
+        }
+
+        /* ========== FOOTER ========== */
+        .hub-footer {
+            text-align: center;
+            color: #999;
+            font-size: 0.85em;
+            padding: 1rem 0 0.5rem 0;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Header
+    st.markdown("""
+    <div class="hub-header">
+        <h1>📊 Laboratório de Mercado Financeiro</h1>
+        <p>Selecione um módulo para começar</p>
     </div>
     """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
-# RODAPÉ
-# -----------------------------------------------------------------------------
-st.divider()
+    # Row 1: M1, M2, M3
+    cols = st.columns(3)
+    for i in range(3):
+        with cols[i]:
+            mod = MODULES[i]
+            if st.button(
+                f"{mod['icon']}\n\n{mod['title']}",
+                key=f"btn_{mod['key']}",
+                use_container_width=True,
+                on_click=go_to_module,
+                args=(mod["key"],)
+            ):
+                pass
 
-st.markdown("""
-<div style="text-align: center; color: #666; font-size: 0.9em;">
-    📊 © 2026 Laboratório de Mercado Financeiro | Desenvolvido para fins educacionais<br>
-    Prof. José Américo – Coppead - FGV - UCAM
-</div>
-""", unsafe_allow_html=True)
+    # Row 2: M4, M5, M6
+    cols = st.columns(3)
+    for i in range(3):
+        with cols[i]:
+            mod = MODULES[i + 3]
+            if st.button(
+                f"{mod['icon']}\n\n{mod['title']}",
+                key=f"btn_{mod['key']}",
+                use_container_width=True,
+                on_click=go_to_module,
+                args=(mod["key"],)
+            ):
+                pass
+
+    # Row 3: Sugestões (centralizada)
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c2:
+        mod = MODULES[6]
+        if st.button(
+            f"{mod['icon']}\n\n{mod['title']}",
+            key=f"btn_{mod['key']}",
+            use_container_width=True,
+            on_click=go_to_module,
+            args=(mod["key"],)
+        ):
+            pass
+
+
+# =============================================================================
+# MODULE PAGE
+# =============================================================================
+
+def render_module_page(module_info):
+    """Renderiza um módulo como página independente."""
+
+    # Override do CSS dos cards para não afetar botões internos do módulo
+    st.markdown("""
+    <style>
+        /* Reset: botões dentro de módulos voltam ao estilo padrão Streamlit */
+        .stButton > button {
+            background: #f0f2f6 !important;
+            border: 1px solid #d2d6dd !important;
+            border-radius: 0.5rem !important;
+            box-shadow: none !important;
+            padding: 0.4rem 1rem !important;
+            min-height: 0 !important;
+            white-space: normal !important;
+            text-align: center !important;
+            color: #31333F !important;
+            font-size: 0.875rem !important;
+            font-weight: 400 !important;
+            transform: none !important;
+            transition: none !important;
+        }
+        .stButton > button:hover {
+            border-color: #c0392b !important;
+            color: #c0392b !important;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* Botão voltar: estilo especial */
+        div[data-testid="stVerticalBlock"] > div:first-child .stButton > button {
+            background: transparent !important;
+            border: 1.2px solid #ddd !important;
+            color: #777 !important;
+            font-size: 0.85rem !important;
+            padding: 0.35rem 1.2rem !important;
+            border-radius: 8px !important;
+        }
+        div[data-testid="stVerticalBlock"] > div:first-child .stButton > button:hover {
+            background: #fafafa !important;
+            border-color: #c0392b !important;
+            color: #c0392b !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Botão voltar
+    st.button("← Voltar ao Menu Principal", key="btn_voltar", on_click=go_to_hub)
+
+    st.markdown("")
+
+    # Renderizar módulo
+    module_info["render"]()
+
+
+# =============================================================================
+# FLUXO PRINCIPAL
+# =============================================================================
+
+if st.session_state.selected_module is None:
+    # HUB
+    render_hub()
+
+    st.markdown("<hr style='border:0.5px solid #eee;'>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class="hub-footer">
+        📊 © 2026 Laboratório de Mercado Financeiro | Desenvolvido para fins educacionais<br>
+        Prof. José Américo — Coppead - FGV - UCAM
+    </div>
+    """, unsafe_allow_html=True)
+
+else:
+    selected = next(
+        (m for m in MODULES if m["key"] == st.session_state.selected_module),
+        None
+    )
+    if selected:
+        render_module_page(selected)
+    else:
+        st.error("Módulo não encontrado.")
+        go_to_hub()
+        st.rerun()
